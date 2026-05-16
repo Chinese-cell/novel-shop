@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小说商城 - TXT小说售卖平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .checkbox-round { width: 24px; height: 24px; border-radius: 50%; }
+        .selected-badge { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; background: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
+        
+        /* 汉堡菜单动画 */
+        .hamburger-line {
+            transition: all 0.3s ease;
+        }
+        .hamburger.active .hamburger-line:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        .hamburger.active .hamburger-line:nth-child(2) {
+            opacity: 0;
+        }
+        .hamburger.active .hamburger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+        
+        /* 移动端菜单 */
+        .mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .mobile-menu.active {
+            max-height: 300px;
+        }
+        
+        /* 管理员悬浮按钮 */
+        .admin-float-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            cursor: pointer;
+            z-index: 100;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .admin-float-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+        .admin-float-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* 公告栏样式 */
+        .announcement-bar {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+        }
+        
+        /* 提示消息 */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 200;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast.success { background: rgba(34, 197, 94, 0.9); }
+        .toast.error { background: rgba(239, 68, 68, 0.9); }
+        
+        /* 响应式调整 */
+        @media (max-width: 767px) {
+            .mobile-full-width {
+                width: 100% !important;
+            }
+            .mobile-text-sm {
+                font-size: 14px !important;
+            }
+            .mobile-btn-lg {
+                padding: 12px 20px !important;
+                font-size: 16px !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部导航栏 -->
+    <nav class="gradient-bg text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <h1 class="text-xl md:text-2xl font-bold cursor-pointer" onclick="showPage('home')">📚 小说商城</h1>
+                
+                <!-- 桌面端导航 -->
+                <div class="hidden md:flex gap-4" id="nav-buttons-desktop">
+                    <button onclick="showPage('home')" class="hover:bg-white/20 px-4 py-2 rounded transition">首页</button>
+                    <button onclick="showAdminLogin()" id="admin-btn-desktop" class="hover:bg-white/20 px-4 py-2 rounded transition">🔐 管理员入口</button>
+                </div>
+                
+                <!-- 移动端汉堡菜单按钮 -->
+                <button class="hamburger md:hidden flex flex-col gap-1.5 p-2" onclick="toggleMobileMenu()">
+                    <span class="hamburger-line w-6 h-0.5 bg-white rounded"></span>
+                    <span class="hamburger-line w-6 h-0.5 bg-white rounded"></span>
+                    <span class="hamburger-line w-6 h-0.5 bg-white rounded"></span>
+                </button>
+            </div>
+            
+            <!-- 移动端菜单 -->
+            <div class="mobile-menu md:hidden mt-4" id="mobile-menu">
+                <div class="flex flex-col gap-2 pb-2">
+                    <button onclick="showPage('home'); toggleMobileMenu();" class="hover:bg-white/20 px-4 py-3 rounded transition text-left mobile-text-sm">🏠 首页</button>
+                    <button onclick="showAdminLogin(); toggleMobileMenu();" id="admin-btn-mobile" class="hover:bg-white/20 px-4 py-3 rounded transition text-left mobile-text-sm">🔐 管理员入口</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 首页 -->
+    <div id="home-page" class="page active">
+        <div class="container mx-auto px-4 py-6 md:py-8">
+            <!-- 公告栏 -->
+            <div id="announcement-container" class="hidden">
+                <div class="announcement-bar">
+                    <div class="flex items-start gap-2">
+                        <span class="text-xl">📢</span>
+                        <div class="flex-1">
+                            <p id="announcement-text" class="text-sm md:text-base font-medium whitespace-pre-wrap"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 搜索和排序栏 -->
+            <div class="mb-6 flex flex-col gap-4">
+                <div class="relative w-full">
+                    <input type="text" id="search-input" placeholder="搜索小说..." 
+                           class="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mobile-text-sm"
+                           oninput="renderBooks()">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <select id="sort-select" class="w-full sm:w-auto px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 mobile-text-sm" onchange="renderBooks()">
+                        <option value="time">按时间排序</option>
+                        <option value="price-asc">价格从低到高</option>
+                        <option value="price-desc">价格从高到低</option>
+                        <option value="title">按标题排序</option>
+                    </select>
+                    <button onclick="showBatchBuyMode()" class="w-full sm:w-auto bg-orange-500 text-white px-4 py-3 rounded-lg hover:bg-orange-600 transition mobile-btn-lg">
+                        🛒 批量购买
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 批量购买栏 -->
+            <div id="batch-buy-bar" class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 hidden">
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-orange-600 font-medium mobile-text-sm">📦 批量购买</span>
+                            <span class="text-sm">已选 <span id="selected-count">0</span> 本</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="clearSelection()" class="text-gray-600 hover:text-gray-800 text-sm px-2 py-1">清除</button>
+                            <button onclick="exitBatchBuyMode()" class="text-gray-600 hover:text-gray-800 text-sm px-2 py-1">退出</button>
+                        </div>
+                    </div>
+                    <div id="batch-buy-summary" class="hidden pt-3 border-t border-orange-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm">原价：¥<span id="original-total">0.00</span></span>
+                            <span class="text-green-600 font-bold">优惠后：¥<span id="discount-total">0.00</span></span>
+                        </div>
+                        <button onclick="batchPayment()" class="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition mobile-btn-lg">立即购买</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 小说列表 -->
+            <div id="book-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6"></div>
+            
+            <!-- 空状态 -->
+            <div id="empty-state" class="text-center py-16 md:py-20 hidden">
+                <div class="text-5xl md:text-6xl mb-4">📖</div>
+                <h3 class="text-lg md:text-xl text-gray-500 mb-4">暂无小说，去上传一本吧</h3>
+                <button onclick="showAdminLogin()" class="gradient-bg text-white px-6 py-3 rounded-lg hover:opacity-90 transition mobile-btn-lg">管理员上传</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理员后台页面 -->
+    <div id="admin-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl md:text-2xl font-bold">🔐 管理员后台</h2>
+                <button onclick="adminLogout()" class="text-red-500 hover:text-red-700 text-sm">退出登录</button>
+            </div>
+            
+            <!-- 功能卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div onclick="showPage('upload')" class="bg-white p-6 rounded-xl shadow-md cursor-pointer hover:shadow-lg transition card-hover">
+                    <div class="text-4xl mb-3">📚</div>
+                    <h3 class="font-bold text-lg mb-1">上传书籍</h3>
+                    <p class="text-gray-500 text-sm">添加单本小说</p>
+                </div>
+                <div onclick="showPage('batch-upload')" class="bg-white p-6 rounded-xl shadow-md cursor-pointer hover:shadow-lg transition card-hover">
+                    <div class="text-4xl mb-3">📚📚</div>
+                    <h3 class="font-bold text-lg mb-1">批量上传</h3>
+                    <p class="text-gray-500 text-sm">一次添加多本小说</p>
+                </div>
+                <div onclick="showPage('manage-books')" class="bg-white p-6 rounded-xl shadow-md cursor-pointer hover:shadow-lg transition card-hover">
+                    <div class="text-4xl mb-3">🗑️</div>
+                    <h3 class="font-bold text-lg mb-1">管理小说</h3>
+                    <p class="text-gray-500 text-sm">删除已上传的小说</p>
+                </div>
+                <div onclick="showPage('payment-settings')" class="bg-white p-6 rounded-xl shadow-md cursor-pointer hover:shadow-lg transition card-hover">
+                    <div class="text-4xl mb-3">💳</div>
+                    <h3 class="font-bold text-lg mb-1">收款码设置</h3>
+                    <p class="text-gray-500 text-sm">上传微信/支付宝收款码</p>
+                </div>
+                <div onclick="showPage('orders-manage')" class="bg-white p-6 rounded-xl shadow-md cursor-pointer hover:shadow-lg transition card-hover">
+                    <div class="text-4xl mb-3">📋</div>
+                    <h3 class="font-bold text-lg mb-1">订单管理</h3>
+                    <p class="text-gray-500 text-sm">查看并确认用户付款</p>
+                </div>
+                <div onclick="showAnnouncementEdit()" class="bg-white p-6 rounded-xl shadow-md cursor-pointer hover:shadow-lg transition card-hover">
+                    <div class="text-4xl mb-3">📢</div>
+                    <h3 class="font-bold text-lg mb-1">发布公告</h3>
+                    <p class="text-gray-500 text-sm">编辑首页公告内容</p>
+                </div>
+            </div>
+            
+            <button onclick="showPage('home')" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition mobile-btn-lg">返回首页</button>
+        </div>
+    </div>
+
+    <!-- 上传书籍页面 -->
+    <div id="upload-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-6">📚 上传新小说</h2>
+            <form id="upload-form" class="space-y-5 bg-white p-5 md:p-6 rounded-xl shadow-md">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">小说名称 *</label>
+                    <input type="text" id="book-title" required class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="例如：凡人修仙传">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">小说简介</label>
+                    <textarea id="book-desc" rows="4" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="请输入小说简介..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">价格 (元) *</label>
+                    <input type="number" id="book-price" min="0.01" step="0.01" required class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="例如：9.9">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">试读字数</label>
+                    <input type="number" id="book-preview-length" min="0" max="5000" value="1000" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="试读字数">
+                    <p class="text-xs text-gray-500 mt-1">默认1000字，设为0则不提供试读</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">上传TXT文件</label>
+                    <input type="file" id="book-file-input" accept=".txt" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" onchange="loadTxtFile()">
+                    <p class="text-xs text-gray-500 mt-1">支持上传txt文件，编码UTF-8</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">小说内容 *</label>
+                    <textarea id="book-content" rows="10" required class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="粘贴小说正文内容，或上传txt文件自动填充..."></textarea>
+                    <p class="text-xs text-gray-500 mt-1">提示：前N字将作为试读内容（N为上方设置的试读字数）</p>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="showPage('admin')" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition mobile-btn-lg">取消</button>
+                    <button type="submit" class="flex-1 gradient-bg text-white py-3 rounded-lg font-medium hover:opacity-90 transition mobile-btn-lg">发布小说</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 小说管理页面 -->
+    <div id="manage-books-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-3xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-6">🗑️ 管理小说</h2>
+            <div id="manage-books-list" class="space-y-3"></div>
+            <div id="manage-empty-state" class="text-center py-12">
+                <div class="text-4xl mb-4">📚</div>
+                <p class="text-gray-500">暂无小说可管理</p>
+            </div>
+            <button onclick="showPage('admin')" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition mt-6 mobile-btn-lg">返回后台</button>
+        </div>
+    </div>
+
+    <!-- 编辑小说页面 -->
+    <div id="edit-book-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-6">✏️ 编辑小说</h2>
+            <form id="edit-form" class="space-y-5 bg-white p-5 md:p-6 rounded-xl shadow-md">
+                <input type="hidden" id="edit-book-id">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">小说名称 *</label>
+                    <input type="text" id="edit-title" required class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">小说简介</label>
+                    <textarea id="edit-desc" rows="4" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">价格 (元) *</label>
+                    <input type="number" id="edit-price" min="0.01" step="0.01" required class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">试读字数</label>
+                    <input type="number" id="edit-preview-length" min="0" max="5000" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm">
+                    <p class="text-xs text-gray-500 mt-1">设为0则不提供试读</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">已购买人数</label>
+                    <input type="number" id="edit-buy-count" min="0" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm">
+                    <p class="text-xs text-gray-500 mt-1">用于显示在小说卡片上的购买人数统计</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">上传新TXT文件（可选）</label>
+                    <input type="file" id="edit-file-input" accept=".txt" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" onchange="loadTxtFile('edit')">
+                    <p class="text-xs text-gray-500 mt-1">留空则保持原内容不变</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">小说内容</label>
+                    <textarea id="edit-content" rows="10" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="showPage('manage-books')" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition mobile-btn-lg">取消</button>
+                    <button type="submit" class="flex-1 gradient-bg text-white py-3 rounded-lg font-medium hover:opacity-90 transition mobile-btn-lg">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 收款码设置页面 -->
+    <div id="payment-settings-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-6">💳 收款码设置</h2>
+            <div class="space-y-6">
+                <!-- 微信收款码 -->
+                <div class="bg-white p-5 rounded-xl shadow-md">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        <span class="text-2xl">💬</span> 微信收款码
+                    </h3>
+                    <div id="wechat-qr-preview" class="w-full max-w-xs mx-auto bg-gray-100 rounded-lg p-4 mb-4" style="min-height: 200px;">
+                        <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                            <div class="text-4xl mb-2">📷</div>
+                            <p class="text-sm">点击下方按钮上传收款码</p>
+                        </div>
+                    </div>
+                    <input type="file" id="wechat-qr-input" accept="image/*" class="hidden" onchange="uploadQRCode('wechat')">
+                    <button onclick="document.getElementById('wechat-qr-input').click()" class="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition mobile-btn-lg">
+                        📤 上传微信收款码
+                    </button>
+                </div>
+
+                <!-- 支付宝收款码 -->
+                <div class="bg-white p-5 rounded-xl shadow-md">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        <span class="text-2xl">💙</span> 支付宝收款码
+                    </h3>
+                    <div id="alipay-qr-preview" class="w-full max-w-xs mx-auto bg-gray-100 rounded-lg p-4 mb-4" style="min-height: 200px;">
+                        <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                            <div class="text-4xl mb-2">📷</div>
+                            <p class="text-sm">点击下方按钮上传收款码</p>
+                        </div>
+                    </div>
+                    <input type="file" id="alipay-qr-input" accept="image/*" class="hidden" onchange="uploadQRCode('alipay')">
+                    <button onclick="document.getElementById('alipay-qr-input').click()" class="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition mobile-btn-lg">
+                        📤 上传支付宝收款码
+                    </button>
+                </div>
+            </div>
+            <button onclick="showPage('admin')" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition mt-6 mobile-btn-lg">返回后台</button>
+        </div>
+    </div>
+
+    <!-- 订单管理页面 -->
+    <div id="orders-manage-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-6">📋 订单管理</h2>
+            
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p class="text-sm text-yellow-700">💡 用户扫码付款后，在此页面点击「确认收款」，用户端将自动跳转到下载页面。</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-md mb-6">
+                <h3 class="font-bold mb-4 flex items-center gap-2">
+                    <span class="w-3 h-3 bg-orange-500 rounded-full inline-block"></span> 待处理订单
+                </h3>
+                <div id="pending-orders-list" class="space-y-3"></div>
+                <p id="pending-orders-empty" class="text-gray-500 text-center py-4">暂无待处理的订单</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-md">
+                <h3 class="font-bold mb-4 flex items-center gap-2">
+                    <span class="w-3 h-3 bg-green-500 rounded-full inline-block"></span> 已完成订单
+                </h3>
+                <div id="completed-orders-list" class="space-y-3"></div>
+                <p id="completed-orders-empty" class="text-gray-500 text-center py-4">暂无已完成的订单</p>
+            </div>
+
+            <button onclick="showPage('admin')" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition mt-6 mobile-btn-lg">返回后台</button>
+        </div>
+    </div>
+
+    <!-- 批量上传页面 -->
+    <div id="batch-upload-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
+            <h2 class="text-xl md:text-2xl font-bold mb-6">📚📚 批量上传小说</h2>
+            <form id="batch-upload-form" class="space-y-5 bg-white p-5 md:p-6 rounded-xl shadow-md">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p class="text-sm text-blue-700">💡 提示：方式一：上传多个TXT文件（文件名作为小说名）；方式二：在文本框中粘贴内容，每本小说以"=====小说名称:xxx====="开头分隔。</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">统一价格 (元) *</label>
+                    <input type="number" id="batch-price" min="0.01" step="0.01" required class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="例如：9.9">
+                    <p class="text-xs text-gray-500 mt-1">所有批量上传的小说将使用此价格</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">统一简介（可选）</label>
+                    <textarea id="batch-desc" rows="2" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="为所有小说添加统一简介..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">试读字数（可选）</label>
+                    <input type="number" id="batch-preview-length" min="0" max="5000" value="1000" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="试读字数">
+                    <p class="text-xs text-gray-500 mt-1">默认1000字，设为0则不提供试读</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📁 上传TXT文件（可选）</label>
+                    <input type="file" id="batch-file-input" accept=".txt" multiple class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" onchange="loadBatchTxtFiles()">
+                    <p class="text-xs text-gray-500 mt-1">支持多选，文件名将作为小说名称</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">📝 或粘贴小说内容（可选）</label>
+                    <p class="text-xs text-gray-600 mb-2">格式：每本小说以 "=====小说名称:xxx=====" 开头，然后是小说内容</p>
+                    <textarea id="batch-content" rows="15" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm font-mono text-sm" placeholder="=====小说名称:斗破苍穹=====
+这里是斗破苍穹的内容...
+第一章 xxx
+...
+
+=====小说名称:斗罗大陆=====
+这里是斗罗大陆的内容...
+第一章 xxx
+..."></textarea>
+                </div>
+                <div id="batch-preview" class="hidden bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium mb-2">识别预览：</h4>
+                    <div id="batch-preview-list" class="space-y-2 text-sm"></div>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="showPage('admin')" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition mobile-btn-lg">取消</button>
+                    <button type="button" onclick="previewBatchUpload()" class="flex-1 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition mobile-btn-lg">预览识别</button>
+                    <button type="submit" class="flex-1 gradient-bg text-white py-3 rounded-lg font-medium hover:opacity-90 transition mobile-btn-lg">批量发布</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 详情页 -->
+    <div id="detail-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
+            <button onclick="showPage('home')" class="mb-4 md:mb-6 text-purple-600 hover:text-purple-800 flex items-center gap-2 mobile-text-sm">← 返回首页</button>
+            <div id="detail-content"></div>
+        </div>
+    </div>
+
+    <!-- 支付页 -->
+    <div id="payment-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
+            <div id="payment-content"></div>
+        </div>
+    </div>
+
+    <!-- 下载页 -->
+    <div id="download-page" class="page">
+        <div class="container mx-auto px-4 py-6 md:py-8 max-w-2xl text-center">
+            <div id="download-content"></div>
+        </div>
+    </div>
+
+    <!-- 管理员登录弹窗 -->
+    <div id="admin-login-modal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-5 md:p-6 max-w-sm w-full mx-4">
+            <h2 class="text-lg md:text-xl font-bold mb-4">🔐 管理员验证</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">请输入密码</label>
+                    <input type="password" id="admin-password-input" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="管理员密码">
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeAdminLoginModal()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">取消</button>
+                    <button onclick="verifyAdminPassword()" class="flex-1 gradient-bg text-white py-2 rounded-lg hover:opacity-90 transition">验证</button>
+                </div>
+                <p id="login-error-msg" class="text-red-500 text-sm hidden text-center">密码错误，请重试</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 公告编辑弹窗 -->
+    <div id="announcement-modal" class="modal fixed inset-0 bg-black/50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-5 md:p-6 max-w-lg w-full mx-4">
+            <h2 class="text-lg md:text-xl font-bold mb-4">📢 编辑公告</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">公告内容</label>
+                    <textarea id="announcement-input" rows="4" class="w-full border border-gray-300 rounded-lg p-3 mobile-text-sm" placeholder="请输入公告内容..."></textarea>
+                    <p class="text-xs text-gray-500 mt-1">留空则不显示公告</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeAnnouncementModal()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">取消</button>
+                    <button onclick="saveAnnouncement()" class="flex-1 gradient-bg text-white py-2 rounded-lg hover:opacity-90 transition">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理员悬浮按钮 -->
+    <div class="admin-float-btn" onclick="showAdminLogin()" title="管理员入口">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+    </div>
+
+    <!-- 提示消息 -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // 常量定义
+        const STORAGE_KEY = 'novel_shop_data_v2';
+        const ADMIN_SESSION_KEY = 'novel_shop_admin_session';
+        const ADMIN_PASSWORD = 'WJwj1127210794';
+        const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24小时
+        
+        // 全局状态
+        let books = [];
+        let currentBook = null;
+        let paidBooks = JSON.parse(localStorage.getItem('paid_books') || '{}');
+        let selectedBooks = [];
+        let batchBuyMode = false;
+        let isAdmin = false;
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initData();
+            renderBooks();
+            loadAnnouncement();
+            // 注意：不再自动检查管理员会话，默认进入顾客模式
+            // 需要主动点击管理员入口并验证密码才能进入管理员后台
+        });
+
+        // 检查管理员登录状态（仅在点击管理员入口时调用）
+        function checkAdminSession() {
+            const session = localStorage.getItem(ADMIN_SESSION_KEY);
+            if (session) {
+                const sessionData = JSON.parse(session);
+                if (Date.now() - sessionData.timestamp < SESSION_DURATION) {
+                    return true;
+                } else {
+                    localStorage.removeItem(ADMIN_SESSION_KEY);
+                }
+            }
+            return false;
+        }
+
+        // 更新管理员UI
+        function updateAdminUI() {
+            const desktopBtn = document.getElementById('admin-btn-desktop');
+            const mobileBtn = document.getElementById('admin-btn-mobile');
+            
+            if (isAdmin) {
+                if (desktopBtn) desktopBtn.textContent = '🔐 管理员后台';
+                if (mobileBtn) mobileBtn.textContent = '🔐 管理员后台';
+            } else {
+                if (desktopBtn) desktopBtn.textContent = '🔐 管理员入口';
+                if (mobileBtn) mobileBtn.textContent = '🔐 管理员入口';
+            }
+        }
+
+        // 切换移动端菜单
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const hamburger = document.querySelector('.hamburger');
+            menu.classList.toggle('active');
+            hamburger.classList.toggle('active');
+        }
+
+        // 显示管理员登录弹窗
+        function showAdminLogin() {
+            // 如果已经是管理员状态，直接进入后台
+            if (isAdmin) {
+                showPage('admin');
+                return;
+            }
+            
+            // 检查是否有有效的会话（24小时免登录）
+            const hasValidSession = checkAdminSession();
+            if (hasValidSession) {
+                // 会话有效，直接登录
+                isAdmin = true;
+                updateAdminUI();
+                showPage('admin');
+                return;
+            }
+            
+            // 没有会话或会话过期，显示密码输入框
+            document.getElementById('admin-login-modal').classList.add('active');
+            document.getElementById('admin-password-input').value = '';
+            document.getElementById('login-error-msg').classList.add('hidden');
+            setTimeout(() => document.getElementById('admin-password-input').focus(), 100);
+        }
+
+        // 关闭管理员登录弹窗
+        function closeAdminLoginModal() {
+            document.getElementById('admin-login-modal').classList.remove('active');
+        }
+
+        // 验证管理员密码
+        function verifyAdminPassword() {
+            const password = document.getElementById('admin-password-input').value;
+            if (password === ADMIN_PASSWORD) {
+                isAdmin = true;
+                const sessionData = {
+                    timestamp: Date.now(),
+                    authenticated: true
+                };
+                localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessionData));
+                updateAdminUI();
+                closeAdminLoginModal();
+                showPage('admin');
+                showToast('登录成功！欢迎管理员', 'success');
+            } else {
+                document.getElementById('login-error-msg').classList.remove('hidden');
+                document.getElementById('admin-password-input').value = '';
+                document.getElementById('admin-password-input').focus();
+            }
+        }
+
+        // 管理员退出登录
+        function adminLogout() {
+            isAdmin = false;
+            localStorage.removeItem(ADMIN_SESSION_KEY);
+            updateAdminUI();
+            showPage('home');
+            showToast('已退出管理员登录', 'success');
+        }
+
+        // 显示公告编辑弹窗
+        function showAnnouncementEdit() {
+            if (!isAdmin) {
+                showToast('请先登录管理员账号', 'error');
+                return;
+            }
+            const data = getData();
+            document.getElementById('announcement-input').value = data.announcement || '';
+            document.getElementById('announcement-modal').classList.add('active');
+        }
+
+        // 关闭公告编辑弹窗
+        function closeAnnouncementModal() {
+            document.getElementById('announcement-modal').classList.remove('active');
+        }
+
+        // 保存公告
+        function saveAnnouncement() {
+            const content = document.getElementById('announcement-input').value.trim();
+            const data = getData();
+            data.announcement = content;
+            saveData(data);
+            loadAnnouncement();
+            closeAnnouncementModal();
+            showToast('公告保存成功！', 'success');
+        }
+
+        // 加载公告
+        function loadAnnouncement() {
+            const data = getData();
+            const announcement = data.announcement || '';
+            const container = document.getElementById('announcement-container');
+            const textEl = document.getElementById('announcement-text');
+            
+            if (announcement) {
+                textEl.textContent = announcement;
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // 获取数据
+        function getData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : { books: [], announcement: '' };
+        }
+
+        // 保存数据
+        function saveData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        // 生成ID
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // 显示提示消息
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 页面切换
+        function showPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(page + '-page').classList.add('active');
+            window.scrollTo(0, 0);
+            
+            if (page === 'home') {
+                renderBooks();
+                exitBatchBuyMode();
+            } else if (page === 'manage-books') {
+                renderManageBooks();
+            } else if (page === 'payment-settings') {
+                loadQRCodePreviews();
+            } else if (page === 'orders-manage') {
+                renderOrdersManage();
+            }
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 渲染书籍列表
+        function renderBooks() {
+            const data = getData();
+            books = data.books || [];
+            const list = document.getElementById('book-list');
+            const empty = document.getElementById('empty-state');
+            
+            // 搜索过滤
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            let filteredBooks = books.filter(book => 
+                book.title.toLowerCase().includes(searchTerm) ||
+                (book.desc && book.desc.toLowerCase().includes(searchTerm))
+            );
+            
+            // 排序
+            const sortType = document.getElementById('sort-select').value;
+            filteredBooks.sort((a, b) => {
+                switch(sortType) {
+                    case 'price-asc': return a.price - b.price;
+                    case 'price-desc': return b.price - a.price;
+                    case 'title': return a.title.localeCompare(b.title);
+                    default: return b.time - a.time;
+                }
+            });
+            
+            if (filteredBooks.length === 0) {
+                list.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+            
+            empty.classList.add('hidden');
+            list.innerHTML = filteredBooks.map(book => {
+                const isSelected = selectedBooks.includes(book.id);
+                const isPaid = paidBooks[book.id];
+                const buyCount = book.buyCount || 0;
+                return `
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden card-hover transition relative ${isSelected ? 'ring-2 ring-purple-500' : ''}" 
+                         onclick="${batchBuyMode ? `toggleSelect('${book.id}')` : `showDetail('${book.id}')`}">
+                        ${isSelected ? '<div class="selected-badge">✓</div>' : ''}
+                        <div class="p-4 md:p-5">
+                            <div class="flex items-start justify-between mb-2">
+                                <h3 class="font-bold text-base md:text-lg line-clamp-1 flex-1">${escapeHtml(book.title)}</h3>
+                                ${isPaid ? '<span class="text-green-500 text-xs ml-2">已购</span>' : ''}
+                            </div>
+                            <p class="text-gray-600 text-sm mb-3 line-clamp-2">${escapeHtml(book.desc || '暂无简介')}</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-orange-500 font-bold text-lg">¥${book.price.toFixed(2)}</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-gray-400 text-xs">${new Date(book.time).toLocaleDateString()}</span>
+                                    <span class="flex items-center gap-1 text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded">
+                                        👥 ${buyCount}人购买
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 显示详情
+        function showDetail(bookId) {
+            const book = books.find(b => b.id === bookId);
+            if (!book) return;
+            currentBook = book;
+            const isPaid = paidBooks[book.id];
+            
+            const content = document.getElementById('detail-content');
+            content.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md p-5 md:p-6">
+                    <h1 class="text-xl md:text-2xl font-bold mb-4">${escapeHtml(book.title)}</h1>
+                    <div class="flex items-center gap-4 mb-4 text-sm text-gray-500">
+                        <span>💰 ¥${book.price.toFixed(2)}</span>
+                        <span>📅 ${new Date(book.time).toLocaleDateString()}</span>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                        <h3 class="font-bold mb-2 text-sm">简介</h3>
+                        <p class="text-gray-700 text-sm leading-relaxed">${escapeHtml(book.desc || '暂无简介')}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                        <h3 class="font-bold mb-2 text-sm">试读内容</h3>
+                        <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(book.content?.substring(0, book.previewLength || 1000) || '暂无内容')}</p>
+                        ${book.content?.length > (book.previewLength || 1000) ? '<p class="text-gray-400 text-xs mt-2">... 购买后阅读全文</p>' : ''}
+                    </div>
+                    ${isPaid ? 
+                        `<button onclick="downloadBook()" class="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition mobile-btn-lg">📥 下载全文</button>` :
+                        `<button onclick="showPayment()" class="w-full gradient-bg text-white py-3 rounded-lg hover:opacity-90 transition mobile-btn-lg">💳 立即购买 (¥${book.price.toFixed(2)})</button>`
+                    }
+                </div>
+            `;
+            showPage('detail');
+        }
+
+        // 显示支付页面
+        function showPayment() {
+            if (!currentBook) return;
+            const content = document.getElementById('payment-content');
+            const wechatQR = getQRCode('wechat');
+            const alipayQR = getQRCode('alipay');
+            
+            content.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md p-5 md:p-6">
+                    <h2 class="text-lg md:text-xl font-bold mb-4">确认购买</h2>
+                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                        <p class="font-medium mb-1">${escapeHtml(currentBook.title)}</p>
+                        <p class="text-orange-500 font-bold text-xl">¥${currentBook.price.toFixed(2)}</p>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <p class="text-sm text-gray-600">请选择支付方式：</p>
+                        <button onclick="showQRCode('wechat')" class="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition flex items-center justify-center gap-2 mobile-btn-lg">
+                            <span>💬</span> 微信支付 ${wechatQR ? '' : '(未上传收款码)'}
+                        </button>
+                        <button onclick="showQRCode('alipay')" class="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition flex items-center justify-center gap-2 mobile-btn-lg">
+                            <span>💙</span> 支付宝 ${alipayQR ? '' : '(未上传收款码)'}
+                        </button>
+                    </div>
+                    <button onclick="showPage('detail')" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition">取消</button>
+                </div>
+            `;
+            showPage('payment');
+        }
+
+        // 获取收款码数据
+        function getQRCode(type) {
+            const paymentData = JSON.parse(localStorage.getItem('payment_qr_codes') || '{}');
+            return paymentData[type] || null;
+        }
+
+        // 显示收款码弹窗（创建订单并开始轮询）
+        function showQRCode(type) {
+            const qrData = getQRCode(type);
+            if (!qrData) {
+                showToast('该支付方式的收款码尚未上传', 'error');
+                return;
+            }
+            
+            // 创建订单
+            const orderId = 'ORD' + Date.now() + Math.random().toString(36).substr(2, 4).toUpperCase();
+            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+            orders.push({
+                id: orderId,
+                bookId: currentBook.id,
+                bookTitle: currentBook.title,
+                price: currentBook.price,
+                payType: type,
+                status: 'pending',
+                createdAt: Date.now()
+            });
+            localStorage.setItem('orders', JSON.stringify(orders));
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal active fixed inset-0 bg-black/70 z-50 items-center justify-center p-4';
+            modal.id = 'payment-modal';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-4 max-w-sm w-full mx-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold flex items-center gap-2">
+                            ${type === 'wechat' ? '<span class="text-2xl">💬</span> 微信收款码' : '<span class="text-2xl">💙</span> 支付宝收款码'}
+                        </h3>
+                        <button onclick="cancelOrder('${orderId}')" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+                    </div>
+                    <div class="bg-gray-100 rounded-lg p-4">
+                        <img src="${qrData.data}" alt="${type === 'wechat' ? '微信收款码' : '支付宝收款码'}" 
+                             class="w-full h-auto rounded-lg">
+                    </div>
+                    <p class="text-center text-sm text-gray-600 mt-4">扫码支付 ¥${currentBook.price.toFixed(2)}</p>
+                    <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div class="flex items-center gap-2">
+                            <div class="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" id="polling-spinner"></div>
+                            <span id="polling-status" class="text-sm text-blue-700">等待管理员确认收款...</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">付款后管理员将自动确认，请稍候</p>
+                    </div>
+                    <p class="text-xs text-gray-400 text-center mt-3">订单号：${orderId}</p>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // 开始轮询订单状态
+            startOrderPolling(orderId);
+        }
+
+        // 轮询订单状态
+        let pollingTimer = null;
+        function startOrderPolling(orderId) {
+            if (pollingTimer) clearInterval(pollingTimer);
+            
+            pollingTimer = setInterval(() => {
+                const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+                const order = orders.find(o => o.id === orderId);
+                
+                if (!order) {
+                    clearInterval(pollingTimer);
+                    pollingTimer = null;
+                    return;
+                }
+                
+                if (order.status === 'paid') {
+                    clearInterval(pollingTimer);
+                    pollingTimer = null;
+                    
+                    // 支付成功
+                    paidBooks[currentBook.id] = true;
+                    localStorage.setItem('paid_books', JSON.stringify(paidBooks));
+                    
+                    // 关闭弹窗
+                    const modal = document.getElementById('payment-modal');
+                    if (modal) modal.remove();
+                    
+                    showDownloadPage();
+                }
+            }, 2000);
+        }
+
+        // 取消订单
+        function cancelOrder(orderId) {
+            if (pollingTimer) {
+                clearInterval(pollingTimer);
+                pollingTimer = null;
+            }
+            
+            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+            const idx = orders.findIndex(o => o.id === orderId);
+            if (idx !== -1) {
+                orders[idx].status = 'cancelled';
+                localStorage.setItem('orders', JSON.stringify(orders));
+            }
+            
+            const modal = document.getElementById('payment-modal');
+            if (modal) modal.remove();
+        }
+
+        // 管理员确认收款
+        function confirmOrderPayment(orderId) {
+            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+            const order = orders.find(o => o.id === orderId);
+            if (!order) {
+                showToast('未找到该订单，可能已失效或被取消', 'error');
+                return;
+            }
+            
+            order.status = 'paid';
+            order.paidAt = Date.now();
+            localStorage.setItem('orders', JSON.stringify(orders));
+            
+            showToast('已确认收款，用户将自动收到下载链接', 'success');
+            renderOrdersManage();
+        }
+
+        // 渲染订单管理页面
+        function renderOrdersManage() {
+            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+            const pending = orders.filter(o => o.status === 'pending');
+            const completed = orders.filter(o => o.status === 'paid');
+            
+            const pendingList = document.getElementById('pending-orders-list');
+            const pendingEmpty = document.getElementById('pending-orders-empty');
+            const completedList = document.getElementById('completed-orders-list');
+            const completedEmpty = document.getElementById('completed-orders-empty');
+            
+            if (pending.length > 0) {
+                pendingEmpty.style.display = 'none';
+                pendingList.innerHTML = pending.map(o => `
+                    <div class="flex items-center justify-between bg-orange-50 border border-orange-200 p-3 rounded-lg">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-sm truncate">${escapeHtml(o.bookTitle)}</p>
+                            <p class="text-xs text-gray-500">¥${o.price.toFixed(2)} · ${o.payType === 'wechat' ? '微信' : '支付宝'} · ${formatOrderTime(o.createdAt)}</p>
+                            <p class="text-xs font-mono text-orange-600 font-bold mt-1">订单号：${o.id}</p>
+                        </div>
+                        <button onclick="confirmOrderPayment('${o.id}')" class="ml-3 bg-green-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600 transition whitespace-nowrap">确认收款</button>
+                    </div>
+                `).join('');
+            } else {
+                pendingEmpty.style.display = 'block';
+                pendingList.innerHTML = '';
+            }
+            
+            if (completed.length > 0) {
+                completedEmpty.style.display = 'none';
+                completedList.innerHTML = completed.map(o => `
+                    <div class="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded-lg">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-sm truncate">${escapeHtml(o.bookTitle)}</p>
+                            <p class="text-xs text-gray-500">¥${o.price.toFixed(2)} · ${o.payType === 'wechat' ? '微信' : '支付宝'} · 已支付 ${formatOrderTime(o.paidAt)}</p>
+                        </div>
+                        <span class="text-green-600 text-sm font-medium ml-3 whitespace-nowrap">✅ 已完成</span>
+                    </div>
+                `).join('');
+            } else {
+                completedEmpty.style.display = 'block';
+                completedList.innerHTML = '';
+            }
+        }
+
+        function formatOrderTime(timestamp) {
+            const d = new Date(timestamp);
+            return d.toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        }
+
+        // 完成支付
+        function completePayment() {
+            if (!currentBook) return;
+            paidBooks[currentBook.id] = true;
+            localStorage.setItem('paid_books', JSON.stringify(paidBooks));
+            showDownloadPage();
+        }
+
+        // 显示下载页面
+        function showDownloadPage() {
+            const content = document.getElementById('download-content');
+            content.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md p-6 md:p-8">
+                    <div class="text-5xl md:text-6xl mb-4">🎉</div>
+                    <h2 class="text-xl md:text-2xl font-bold mb-2">购买成功！</h2>
+                    <p class="text-gray-600 mb-6 text-sm">${escapeHtml(currentBook.title)}</p>
+                    <button onclick="downloadBook()" class="w-full gradient-bg text-white py-3 rounded-lg hover:opacity-90 transition mb-3 mobile-btn-lg">📥 立即下载</button>
+                    <button onclick="showPage('home')" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition">返回首页</button>
+                </div>
+            `;
+            showPage('download');
+        }
+
+        // 下载书籍
+        function downloadBook() {
+            if (!currentBook || !currentBook.content) return;
+            const blob = new Blob([currentBook.content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentBook.title}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('下载成功！', 'success');
+        }
+
+        // 批量购买模式
+        function showBatchBuyMode() {
+            batchBuyMode = true;
+            selectedBooks = [];
+            document.getElementById('batch-buy-bar').classList.remove('hidden');
+            updateBatchBuyUI();
+            renderBooks();
+            showToast('批量购买模式：点击选择书籍', 'success');
+        }
+
+        // 退出批量购买模式
+        function exitBatchBuyMode() {
+            batchBuyMode = false;
+            selectedBooks = [];
+            document.getElementById('batch-buy-bar').classList.add('hidden');
+            document.getElementById('batch-buy-summary').classList.add('hidden');
+            renderBooks();
+        }
+
+        // 切换选择
+        function toggleSelect(bookId) {
+            const index = selectedBooks.indexOf(bookId);
+            if (index > -1) {
+                selectedBooks.splice(index, 1);
+            } else {
+                selectedBooks.push(bookId);
+            }
+            updateBatchBuyUI();
+            renderBooks();
+        }
+
+        // 清除选择
+        function clearSelection() {
+            selectedBooks = [];
+            updateBatchBuyUI();
+            renderBooks();
+        }
+
+        // 更新批量购买UI
+        function updateBatchBuyUI() {
+            document.getElementById('selected-count').textContent = selectedBooks.length;
+            
+            if (selectedBooks.length > 0) {
+                document.getElementById('batch-buy-summary').classList.remove('hidden');
+                const selected = books.filter(b => selectedBooks.includes(b.id));
+                const total = selected.reduce((sum, b) => sum + b.price, 0);
+                
+                // 同价格3本8折
+                const priceGroups = {};
+                selected.forEach(b => {
+                    const priceKey = b.price.toFixed(2);
+                    priceGroups[priceKey] = (priceGroups[priceKey] || 0) + 1;
+                });
+                
+                let discount = 0;
+                Object.entries(priceGroups).forEach(([price, count]) => {
+                    const discountSets = Math.floor(count / 3);
+                    discount += discountSets * parseFloat(price) * 3 * 0.2;
+                });
+                
+                document.getElementById('original-total').textContent = total.toFixed(2);
+                document.getElementById('discount-total').textContent = (total - discount).toFixed(2);
+            } else {
+                document.getElementById('batch-buy-summary').classList.add('hidden');
+            }
+        }
+
+        // 批量支付
+        function batchPayment() {
+            if (selectedBooks.length === 0) return;
+            
+            selectedBooks.forEach(bookId => {
+                paidBooks[bookId] = true;
+            });
+            localStorage.setItem('paid_books', JSON.stringify(paidBooks));
+            
+            const content = document.getElementById('download-content');
+            content.innerHTML = `
+                <div class="bg-white rounded-xl shadow-md p-6 md:p-8">
+                    <div class="text-5xl md:text-6xl mb-4">🎉</div>
+                    <h2 class="text-xl md:text-2xl font-bold mb-2">批量购买成功！</h2>
+                    <p class="text-gray-600 mb-6 text-sm">共购买 ${selectedBooks.length} 本书</p>
+                    <button onclick="showPage('home')" class="w-full gradient-bg text-white py-3 rounded-lg hover:opacity-90 transition mobile-btn-lg">返回首页</button>
+                </div>
+            `;
+            exitBatchBuyMode();
+            showPage('download');
+        }
+
+        // 加载TXT文件
+        function loadTxtFile(prefix = '') {
+            const input = document.getElementById(`${prefix}file-input`);
+            const file = input.files[0];
+            
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                document.getElementById(`${prefix}content`).value = content;
+                showToast('文件内容已加载！', 'success');
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // 处理上传表单
+        document.getElementById('upload-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!isAdmin) {
+                showToast('请先登录管理员账号', 'error');
+                return;
+            }
+            
+            const title = document.getElementById('book-title').value.trim();
+            const desc = document.getElementById('book-desc').value.trim();
+            const price = parseFloat(document.getElementById('book-price').value);
+            const previewLength = parseInt(document.getElementById('book-preview-length').value) || 1000;
+            const content = document.getElementById('book-content').value.trim();
+            
+            if (!title || !price || !content) {
+                showToast('请填写完整信息', 'error');
+                return;
+            }
+            
+            const newBook = {
+                id: generateId(),
+                title: title,
+                desc: desc || '暂无简介',
+                price: price,
+                previewLength: previewLength,
+                content: content,
+                time: Date.now()
+            };
+            
+            const data = getData();
+            data.books = data.books || [];
+            data.books.unshift(newBook);
+            saveData(data);
+            
+            // 重置表单
+            document.getElementById('upload-form').reset();
+            document.getElementById('book-preview-length').value = 1000;
+            
+            showToast('小说发布成功！', 'success');
+            showPage('home');
+        });
+
+        // 批量上传的文件数据
+        let batchFilesData = [];
+
+        // 加载批量TXT文件
+        function loadBatchTxtFiles() {
+            const input = document.getElementById('batch-file-input');
+            const files = input.files;
+            
+            if (!files || files.length === 0) return;
+            
+            batchFilesData = [];
+            let loadedCount = 0;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const title = file.name.replace(/\.txt$/i, ''); // 去掉.txt后缀
+                    const content = e.target.result;
+                    
+                    batchFilesData.push({
+                        title: title,
+                        content: content
+                    });
+                    
+                    loadedCount++;
+                    if (loadedCount === files.length) {
+                        showToast(`成功加载 ${batchFilesData.length} 个TXT文件`, 'success');
+                        // 自动预览
+                        previewBatchUpload();
+                    }
+                };
+                
+                reader.readAsText(file, 'UTF-8');
+            }
+        }
+
+        // 预览批量上传内容
+        function previewBatchUpload() {
+            const content = document.getElementById('batch-content').value.trim();
+            
+            // 合并文件数据和文本数据
+            let allBooks = [...batchFilesData];
+            
+            // 解析文本框中的内容
+            if (content) {
+                const textBooks = parseBatchContent(content);
+                allBooks = [...allBooks, ...textBooks];
+            }
+            
+            if (allBooks.length === 0) {
+                showToast('请上传TXT文件或输入小说内容', 'error');
+                return;
+            }
+            
+            const previewDiv = document.getElementById('batch-preview');
+            const previewList = document.getElementById('batch-preview-list');
+            
+            previewList.innerHTML = allBooks.map((book, index) => `
+                <div class="flex items-center justify-between bg-white p-2 rounded">
+                    <span class="font-medium">${index + 1}. ${escapeHtml(book.title)}</span>
+                    <span class="text-gray-500 text-xs">${book.content.length} 字</span>
+                </div>
+            `).join('');
+            
+            previewDiv.classList.remove('hidden');
+            showToast(`成功识别 ${allBooks.length} 本小说`, 'success');
+        }
+
+        // 解析批量上传内容
+        function parseBatchContent(content) {
+            const books = [];
+            // 匹配格式：=====小说名称:xxx===== 或 =====xxx=====
+            const regex = /=====\s*小说名称[:：]?\s*([^=]+)\s*=====\s*([\s\S]*?)(?======\s*小说名称[:：]|$)/g;
+            let match;
+            
+            while ((match = regex.exec(content)) !== null) {
+                const title = match[1].trim();
+                const bookContent = match[2].trim();
+                if (title && bookContent) {
+                    books.push({ title, content: bookContent });
+                }
+            }
+            
+            // 如果没有匹配到标准格式，尝试用简单分隔符分割
+            if (books.length === 0) {
+                const simpleRegex = /=====\s*([^=]+)\s*=====\s*([\s\S]*?)(?======|$)/g;
+                while ((match = simpleRegex.exec(content)) !== null) {
+                    const title = match[1].trim();
+                    const bookContent = match[2].trim();
+                    if (title && bookContent) {
+                        books.push({ title, content: bookContent });
+                    }
+                }
+            }
+            
+            return books;
+        }
+
+        // 处理批量上传表单
+        document.getElementById('batch-upload-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!isAdmin) {
+                showToast('请先登录管理员账号', 'error');
+                return;
+            }
+            
+            const price = parseFloat(document.getElementById('batch-price').value);
+            const defaultDesc = document.getElementById('batch-desc').value.trim();
+            const previewLength = parseInt(document.getElementById('batch-preview-length').value) || 1000;
+            const content = document.getElementById('batch-content').value.trim();
+            
+            if (!price) {
+                showToast('请填写价格', 'error');
+                return;
+            }
+            
+            // 合并文件数据和文本数据
+            let allBooks = [...batchFilesData];
+            
+            // 解析文本框中的内容
+            if (content) {
+                const textBooks = parseBatchContent(content);
+                allBooks = [...allBooks, ...textBooks];
+            }
+            
+            if (allBooks.length === 0) {
+                showToast('请上传TXT文件或输入小说内容', 'error');
+                return;
+            }
+            
+            const data = getData();
+            data.books = data.books || [];
+            
+            allBooks.forEach(book => {
+                const newBook = {
+                    id: generateId(),
+                    title: book.title,
+                    desc: defaultDesc || '暂无简介',
+                    price: price,
+                    previewLength: previewLength,
+                    content: book.content,
+                    time: Date.now()
+                };
+                data.books.unshift(newBook);
+            });
+            
+            saveData(data);
+            
+            // 重置表单
+            document.getElementById('batch-upload-form').reset();
+            document.getElementById('batch-preview').classList.add('hidden');
+            document.getElementById('batch-preview-length').value = 1000;
+            batchFilesData = [];
+            
+            showToast(`成功发布 ${allBooks.length} 本小说！`, 'success');
+            showPage('home');
+        });
+
+        // 渲染小说管理列表
+        function renderManageBooks() {
+            const data = getData();
+            const books = data.books || [];
+            const list = document.getElementById('manage-books-list');
+            const empty = document.getElementById('manage-empty-state');
+            
+            if (books.length === 0) {
+                list.innerHTML = '';
+                empty.classList.remove('hidden');
+                return;
+            }
+            
+            empty.classList.add('hidden');
+            list.innerHTML = books.map(book => `
+                <div class="bg-white rounded-xl shadow-md p-4 flex items-center justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-bold">${escapeHtml(book.title)}</h3>
+                        <p class="text-sm text-gray-500">¥${book.price.toFixed(2)} - 试读: ${book.previewLength || 1000}字 - ${new Date(book.time).toLocaleDateString()}</p>
+                        <p class="text-sm text-gray-400 mt-1">👥 已购买: ${book.buyCount || 0}人</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editBook('${book.id}')" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm">
+                            编辑
+                        </button>
+                        <button onclick="deleteBook('${book.id}')" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm">
+                            删除
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 编辑小说
+        function editBook(bookId) {
+            const data = getData();
+            const book = data.books.find(b => b.id === bookId);
+            
+            if (!book) {
+                showToast('小说不存在', 'error');
+                return;
+            }
+            
+            document.getElementById('edit-book-id').value = book.id;
+            document.getElementById('edit-title').value = book.title;
+            document.getElementById('edit-desc').value = book.desc;
+            document.getElementById('edit-price').value = book.price;
+            document.getElementById('edit-preview-length').value = book.previewLength || 1000;
+            document.getElementById('edit-buy-count').value = book.buyCount || 0;
+            document.getElementById('edit-content').value = book.content;
+            
+            showPage('edit-book');
+        }
+
+        // 处理编辑表单
+        document.getElementById('edit-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!isAdmin) {
+                showToast('请先登录管理员账号', 'error');
+                return;
+            }
+            
+            const bookId = document.getElementById('edit-book-id').value;
+            const title = document.getElementById('edit-title').value.trim();
+            const desc = document.getElementById('edit-desc').value.trim();
+            const price = parseFloat(document.getElementById('edit-price').value);
+            const previewLength = parseInt(document.getElementById('edit-preview-length').value) || 1000;
+            const buyCount = parseInt(document.getElementById('edit-buy-count').value) || 0;
+            const content = document.getElementById('edit-content').value.trim();
+            
+            if (!title || !price || !content) {
+                showToast('请填写完整信息', 'error');
+                return;
+            }
+            
+            const data = getData();
+            const bookIndex = data.books.findIndex(b => b.id === bookId);
+            
+            if (bookIndex === -1) {
+                showToast('小说不存在', 'error');
+                return;
+            }
+            
+            data.books[bookIndex] = {
+                ...data.books[bookIndex],
+                title: title,
+                desc: desc || '暂无简介',
+                price: price,
+                previewLength: previewLength,
+                buyCount: buyCount,
+                content: content
+            };
+            
+            saveData(data);
+            showToast('小说修改成功！', 'success');
+            showPage('manage-books');
+        });
+
+        // 删除小说
+        function deleteBook(bookId) {
+            if (!confirm('确定要删除这本小说吗？此操作不可撤销！')) {
+                return;
+            }
+            
+            const data = getData();
+            data.books = (data.books || []).filter(book => book.id !== bookId);
+            saveData(data);
+            
+            // 同步删除已购买记录
+            if (paidBooks[bookId]) {
+                delete paidBooks[bookId];
+                localStorage.setItem('paid_books', JSON.stringify(paidBooks));
+            }
+            
+            showToast('小说删除成功！', 'success');
+            renderManageBooks();
+        }
+
+        // 上传收款码
+        function uploadQRCode(type) {
+            const input = document.getElementById(type + '-qr-input');
+            const file = input.files[0];
+            
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const qrData = {
+                    data: e.target.result,
+                    type: type,
+                    timestamp: Date.now()
+                };
+                
+                // 保存到localStorage
+                const paymentData = JSON.parse(localStorage.getItem('payment_qr_codes') || '{}');
+                paymentData[type] = qrData;
+                localStorage.setItem('payment_qr_codes', JSON.stringify(paymentData));
+                
+                // 更新预览
+                const previewDiv = document.getElementById(type + '-qr-preview');
+                previewDiv.innerHTML = `
+                    <img src="${e.target.result}" alt="${type === 'wechat' ? '微信收款码' : '支付宝收款码'}" 
+                         class="w-full h-auto rounded-lg" style="max-height: 300px;">
+                `;
+                
+                showToast(type === 'wechat' ? '微信收款码上传成功！' : '支付宝收款码上传成功！', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 加载收款码预览
+        function loadQRCodePreviews() {
+            const paymentData = JSON.parse(localStorage.getItem('payment_qr_codes') || '{}');
+            
+            // 微信收款码
+            if (paymentData.wechat) {
+                document.getElementById('wechat-qr-preview').innerHTML = `
+                    <img src="${paymentData.wechat.data}" alt="微信收款码" 
+                         class="w-full h-auto rounded-lg" style="max-height: 300px;">
+                `;
+            }
+            
+            // 支付宝收款码
+            if (paymentData.alipay) {
+                document.getElementById('alipay-qr-preview').innerHTML = `
+                    <img src="${paymentData.alipay.data}" alt="支付宝收款码" 
+                         class="w-full h-auto rounded-lg" style="max-height: 300px;">
+                `;
+            }
+        }
+
+        // 初始化数据（添加示例书籍）
+        function initData() {
+            const data = getData();
+            if (data.books && data.books.length > 0) return;
+            
+            const sampleBooks = [
+                {
+                    id: generateId(),
+                    title: '斗破苍穹',
+                    price: 9.9,
+                    desc: '这里是属于斗气的世界，没有花俏艳丽的魔法，有的，仅仅是繁衍到巅峰的斗气！',
+                    content: `斗破苍穹
+
+第一章 陨落的天才
+
+"斗之力，三段！"
+
+望着测验魔石碑上面闪亮得甚至有些刺眼的五个大字，少年面无表情，唇角有着一抹自嘲，紧握的手掌，因为大力，而导致略微尖锐的指甲深深的刺进了掌心之中，带来一阵阵钻心的疼痛...
+
+"萧炎，斗之力，三段！级别：低级！"测验魔石碑之旁，一位中年男子，看了一眼碑上所显示出来的信息，语气漠然的将之公布了出来...
+
+中年男子话刚刚脱口，便是不出意外的在人头汹涌的广场上带起了一阵嘲讽的骚动。
+
+"三段？嘿嘿，果然不出我所料，这个"天才"这一年又是在原地踏步！"
+
+"哎，这废物真是把家族的脸都给丢光了。"
+
+"要不是族长是他的父亲，这种废物，早就被驱赶出家族，任其自生自灭了，哪还有机会待在家族中白吃白喝。"
+
+"唉，昔年那名闻乌坦城的天才少年，如今怎么落魄成这般模样了啊？"
+
+"谁知道呢，或许做了什么亏心事，惹得神灵降怒了吧..."
+
+周围传来的不屑嘲笑以及惋惜轻叹，落在那如木桩待在原地的少年耳中，恍如一根根利刺狠狠的扎在心脏一般，让得少年呼吸微微急促。
+
+少年缓缓抬起头来，露出一张有些清秀的稚嫩脸庞，漆黑的眸子木然的在周围那些嘲讽的同龄人身上扫过，少年嘴角的自嘲，似乎变得更加苦涩了。
+
+"这些人，都如此刻薄势力吗？或许是因为三年前他们曾经在自己面前露出过最谦卑的笑容，所以，如今想要讨还回去吧..."苦涩的一笑，萧炎落寞的转身，安静的回到了队伍的最后一排，孤单的身影，与周围的世界，有些格格不入。
+
+"下一个，萧媚！"
+
+听着测验人的喊声，一名少女快步行出，少女刚刚出场，附近的议论声便是小了许多，一双双略微火热的目光，牢牢的锁定着少女的脸颊...
+
+少女年龄不过十四左右，虽然并算不上绝色，不过那张稚气未脱的小脸，却是蕴含着淡淡的妩媚，清纯与妩媚，矛盾的集合，让得她成功的成为了全场瞩目的焦点...
+
+少女快步上前，小手轻车熟路的触摸着漆黑的魔石碑，然后缓缓闭上眼睛...
+
+在少女闭眼片刻之后，漆黑的魔石碑之上再次亮起了光芒...
+
+"斗之气：七段！"
+
+"萧媚，斗之气：七段！级别:高级！"
+
+"耶！"听着测验员所喊出的成绩，少女脸颊扬起了得意的笑容...
+
+"啧啧，七段斗之气，真了不起，按这进度，恐怕顶多只需要三年时间，她就能称为一名真正的斗者了吧..."
+
+"不愧是家族中种子级别的人物啊..."
+
+听着人群中传来的一阵阵羡慕声，少女脸颊上的笑容更是多了几分，虚荣心，这是很多女孩都无法抗拒的诱惑...
+
+与平日里的几个姐妹互相笑谈着，萧媚的视线，忽然的透过周围的人群，停在了人群外的那一道孤单身影上...
+
+皱眉思虑了瞬间，萧媚还是打消了过去的念头，现在的两人，已经不在同一个阶层之上，以萧炎最近几年的表现，成年后，顶多只能作为家族中的下层人员，而天赋优秀的她，则将会成为家族重点培养的强者，前途可以说是不可限量。
+
+"唉..."莫名的轻叹了一口气，萧媚脑中忽然浮现出三年前那意气风发的少年，四岁练气，十岁拥有九段斗之气，十一岁突破十段斗之气，成功凝聚斗之气旋，一跃成为家族百年之内最年轻的斗者！
+
+当初的少年，自信而且潜力无可估量，不知让得多少少女对其春心荡漾，当然，这也包括以前的萧媚。
+
+然而天才的道路，貌似总是曲折的，三年之前，这名声望达到巅峰的天才少年，却是突兀的接受到了有生以来最残酷的打击，不仅辛辛苦苦修炼十数载方才凝聚的斗之气旋，一夜之间，化为乌有，而且体内的斗之气，也是随着时间的流逝，变得诡异的越来越少。
+
+斗之气消失的直接结果，便是导致其实力不断的后退。
+
+从天才的神坛，一夜跌落到了连普通人都不如的地步，这种打击，让得少年从此失魂落魄，天才之名，也是逐渐的被不屑与嘲讽所替代。
+
+站的越高，摔得越狠，这次的跌落，或许就再也没有爬起的机会。
+
+"下一个，萧薰儿！"
+
+喧闹的人群中，测试员的声音，再次响了起来。
+
+随着这有些清雅的名字响起，人群忽然的安静了下来，所有的视线，豁然转移。
+
+在众人视线汇聚之处，一位身着紫色衣裙的少女，正淡雅的站立，平静的稚嫩俏脸，并未因为众人的注目而改变分毫。
+
+少女清冷淡然的气质，犹如清莲初绽，小小年纪，却已初具脱俗气质，难以想象，日后若是长大，少女将会如何的倾国倾城...
+
+这名紫裙少女，论起美貌与气质来，比先前的萧媚，无疑还要更胜上几分，也难怪在场的众人都是这般动作。
+
+莲步微移，名为萧薰儿的少女行到魔石碑之前，小手伸出，镶着黑金丝的紫袖滑落而下，露出一截雪白娇嫩的皓腕，然后轻触着石碑...
+
+微微沉静，石碑之上，刺眼的光芒再次绽放。
+
+"斗之气：九段！级别：高级！"
+
+望着石碑之上的字体，场中陷入了一阵寂静。
+
+"...竟然到九段了，真是恐怖！家族中年轻一辈的第一人，恐怕非薰儿小姐莫属了。"寂静过后，周围的少年，都是不由自主的咽了一口唾沫，眼神充满敬畏...
+
+斗之气，每位斗者的必经之路，初阶斗之气分一至十段，当体内斗之气到达十段之时，便能凝聚斗之气旋，成为一名受人尊重的斗者！
+
+人群中，萧媚皱着浅眉盯着石碑前的紫裙少女，脸颊上闪过一抹嫉妒...
+
+望着石碑上的信息，一旁的中年测验员漠然的脸庞上竟然也是罕见的露出了一丝笑意，对着少女略微恭声道："薰儿小姐，半年之后，你应该便能凝聚斗之气旋，如果你成功的话，那么以十四岁年龄成为一名真正的斗者，你是萧家百年内的第二人！"
+
+是的，第二人，那位第一人，便是褪去了天才光环的萧炎。
+
+"谢谢。"少女微微点了点头，平淡的小脸并未因为他的夸奖而出现喜悦，安静的回转过身，然后在众人炽热的注目中，缓缓的行到了人群最后面的那颓废少年面前...
+
+"萧炎哥哥。"在经过少年身旁时，少女顿下了脚步，对着萧炎恭敬的弯了弯腰，美丽的俏脸上，居然露出了让周围少女为之嫉妒的清雅笑容。
+
+"我现在还有资格让你怎么叫么?"望着面前这颗已经成长为家族中最璀璨的明珠，萧炎苦涩的道，她是在自己落魄后，极为少数还对自己依旧保持着尊敬的人。
+
+"萧炎哥哥，以前你曾经与薰儿说过，要能放下，才能拿起，提放自如，是自在人！"萧薰儿微笑着柔声道，略微稚嫩的嗓音，却是暖人心肺。
+
+"呵呵，自在人？我也只会说而已，你看我现在的模样，像自在人吗？而且...这世界，本来就不属于我。"萧炎自嘲的一笑，意兴阑珊的道。
+
+面对着萧炎的颓废，萧薰儿纤细的眉毛微微皱了皱，认真的道："萧炎哥哥，虽然并不知道你究竟是怎么回事，不过，薰儿相信，你会重新站起来，取回属于你的荣耀与尊严..."话到此处，微顿了顿，少女白皙的俏脸，头一次露出淡淡的绯红："当年的萧炎哥哥，的确很吸引人..."
+
+"呵呵..."面对着少女毫不掩饰的坦率话语，少年尴尬的笑了一声，可却未再说什么，人不风流枉少年，可现在的他，实在没这资格与心情，落寞的回转过身，对着广场之外缓缓行去...
+
+站在原地望着少年那恍如与世隔绝的孤独背影，萧薰儿踌躇了一会，然后在身后一干嫉妒的狼嚎声中，快步追了上去，与少年并肩而行...
+
+（新书开张，求推荐票！呵呵，新书期间，土豆会保持一天两章的更新，若是大家觉得新书好看，请投上几张推荐票吧，土豆谢谢了。）`,
+                    time: Date.now() - 86400000
+                },
+                {
+                    id: generateId(),
+                    title: '斗罗大陆',
+                    price: 9.9,
+                    desc: '唐门外门弟子唐三，因偷学内门绝学为唐门所不容，跳崖明志时却发现没有死，反而以另外一个身份来到了另一个世界，一个属于武魂的世界，名叫斗罗大陆。',
+                    content: `斗罗大陆
+
+第一章 穿越的唐门弟子
+
+斗罗大陆，天斗帝国西南，法斯诺行省，圣魂村。
+
+圣魂村是一个只有三百余户的小村，村民们生活质朴，大部分都是面朝黄土背朝天的农民。
+
+村口，一座看上去已经有了一些年头的武魂殿静静矗立，殿顶的琉璃瓦在阳光下闪烁着淡淡的光泽。
+
+今天是圣魂村一年一度的武魂觉醒日，所有年满六岁的孩子都将在这里进行武魂觉醒。
+
+一个大约六、七岁的小男孩站在武魂殿门口，他有着一头乌黑的短发，身材匀称，一双黑色的大眼睛中闪烁着灵动的光芒。
+
+"小三，准备好了吗？"一个苍老的声音响起。
+
+小男孩转过身，看向身后的老者，恭敬地说道："准备好了，村长爷爷。"
+
+老者姓杰克，是圣魂村的村长，已经年过七旬，但精神矍铄。他看着眼前的小男孩，眼中充满了慈爱。
+
+"小三啊，你的父亲是个了不起的人，希望你也能觉醒一个强大的武魂。"杰克村长说道。
+
+小男孩名叫唐三，他的父亲唐昊是村里唯一的铁匠，平日里沉默寡言，但手艺却是极好。
+
+唐三点点头，跟着杰克村长走进了武魂殿。
+
+殿内，已经有几个和唐三年纪相仿的孩子在等待了，他们的父母都在一旁紧张地看着。
+
+一个身穿蓝色长袍的中年男子站在殿中央，他的胸前有一个银色的徽章，上面刻着一个武魂的图案。
+
+"我是武魂殿的执事素云涛，负责本次的武魂觉醒。"中年男子说道，"现在，请孩子们排成一排。"
+
+孩子们依言排好队，唐三站在队伍的最后。
+
+素云涛从怀中取出一个水晶球，口中念念有词。突然，一道柔和的光芒从水晶球中射出，笼罩在第一个孩子身上。
+
+"叮！"
+
+一声轻响，一个黄色的光环出现在孩子脚下，光环中浮现出一柄锄头的虚影。
+
+"武魂，锄头。是器武魂，但没有魂力。"素云涛淡淡地说道，"下一个。"
+
+一个个孩子依次上前，觉醒的武魂五花八门，有镰刀、菜刀、铁锅等等，但都没有魂力。
+
+终于轮到唐三了。
+
+素云涛看向唐三，眼中闪过一丝好奇。他总觉得这个孩子和其他孩子不太一样。
+
+水晶球的光芒笼罩在唐三身上，他只感觉一股温和的力量涌入体内，似乎在探寻着什么。
+
+突然，唐三的体内传来一阵温热的感觉，紧接着，他的右手之中，一根蓝银草缓缓浮现。
+
+与此同时，在蓝银草出现的瞬间，唐三的左手悄然抬起，一根漆黑的长针出现在他的掌心之中，正是唐门的独门暗器，阎王帖！
+
+但这一切都被素云涛忽略了，他的目光完全被唐三右手中的蓝银草吸引。
+
+"蓝银草？又是一个废武魂。"素云涛有些失望地说道，"不过，让我看看有没有魂力。"
+
+他将水晶球递到唐三面前，示意他把手放在上面。
+
+唐三依言照做，当他的手触碰到水晶球的瞬间，水晶球突然爆发出耀眼的光芒，整个武魂殿都被照得通明！
+
+素云涛的眼睛瞬间瞪得滚圆，脸上充满了难以置信的神色。
+
+"先天满魂力！竟然是先天满魂力！"`,
+                    time: Date.now() - 86400000 * 2
+                },
+                {
+                    id: generateId(),
+                    title: '遮天',
+                    price: 12.8,
+                    desc: '冰冷与黑暗并存的宇宙深处，九具庞大的龙尸拉着一口青铜古棺，亘古长存。',
+                    content: `遮天
+
+第一章 九龙拉棺
+
+冰冷与黑暗并存的宇宙深处，一片死寂。
+
+突然，九具庞大的龙尸出现在视野之中，它们长达万米，浑身覆盖着漆黑的鳞片，散发着古老而苍凉的气息。
+
+每一条龙尸都有百丈长，龙角峥嵘，龙爪锋利，仿佛随时都会复活一般。
+
+更为震撼的是，这九条龙尸竟然用铁链拉着一口青铜古棺。
+
+古棺巨大无比，上面刻满了神秘的符文，散发着令人心悸的气息。
+
+这是太空探测器在枯寂的宇宙中捕捉到的一幅极其震撼的画面。
+
+消息传回地球，立刻引起了轩然大波。
+
+没有人知道这九龙拉棺来自何方，也没有人知道它要去往何处。
+
+就在全世界都为之震惊的时候，华夏国的一座名山之中，一个名叫叶凡的少年正在山顶修炼。
+
+叶凡，二十出头，身材挺拔，面容俊朗。他是华夏古武界的天才，年纪轻轻便已经达到了武道宗师的境界。
+
+"嗯？"
+
+叶凡突然睁开眼睛，他感觉到了一股奇异的力量从天际传来，似乎有什么东西正在靠近。
+
+他抬头望向天空，只见一道金光划破苍穹，瞬间便来到了他的面前。
+
+金光散去，一口青铜古棺出现在他的面前，九条龙尸静静地趴在地上，仿佛在等待着什么。
+
+叶凡的瞳孔骤然收缩，他能感觉到这青铜古棺中蕴含着一股恐怖的力量，那是一种超越了武道范畴的力量。
+
+就在他犹豫不决的时候，青铜古棺的棺盖缓缓打开，一股强大的吸力从棺中传出，瞬间便将叶凡吸入了其中。
+
+"不！"
+
+叶凡惊呼一声，想要反抗，但那股吸力太过强大，他根本无法挣脱。
+
+眼前的景象变得扭曲，叶凡感觉自己仿佛穿越了时空，来到了一个陌生的世界。
+
+当他再次睁开眼睛的时候，发现自己身处一片广袤的大陆之上，天空中悬挂着一轮巨大的太阳，散发着耀眼的光芒。
+
+"这里是...哪里？"
+
+叶凡站起身来，环顾四周，心中充满了疑惑。
+
+就在这时，一个苍老的声音在他耳边响起："年轻人，欢迎来到北斗星域。"
+
+叶凡转头看去，只见一个白发苍苍的老者不知何时出现在他的身后，老者的眼中闪烁着睿智的光芒。
+
+"北斗星域？"叶凡皱了皱眉，"那是什么地方？"
+
+老者微微一笑："这里是浩瀚宇宙中的一片星域，而你，是被九龙拉棺带到这里来的。"
+
+叶凡心中一震，他终于明白了，那九龙拉棺竟然是一件可以穿越时空的至宝！
+
+"我该怎么回去？"叶凡问道。
+
+老者摇了摇头："回去？恐怕很难。不过，既然你来到了这里，或许这就是你的机缘。在这片星域之中，有着无数的修炼法门和珍贵资源，如果你能够在这里修炼有成，或许有一天能够找到回去的路。"
+
+叶凡沉默了片刻，他知道，自己已经没有选择了。既然来到了这里，那就只能走一步看一步了。
+
+"前辈，您能告诉我这里的修炼体系吗？"叶凡问道。
+
+老者点了点头："在这片星域，修炼分为九大境界：轮海、道宫、四极、化龙、仙台...每一个境界都有着无尽的奥秘。"
+
+叶凡的眼中闪烁着兴奋的光芒，他能感觉到，这里的天地灵气远比地球浓郁，在这里修炼，或许能够突破他一直无法突破的瓶颈。
+
+"多谢前辈指点。"叶凡恭敬地说道。
+
+老者微微一笑，身形渐渐变得虚幻："好了，我该走了。记住，在这片星域之中，实力就是一切。祝你好运，年轻人。"
+
+话音落下，老者的身影彻底消失在虚空之中。
+
+叶凡深吸一口气，目光坚定地望向远方。
+
+他知道，自己的传奇之路，从这一刻正式开始。`,
+                    time: Date.now() - 86400000 * 3
+                }
+            ];
+            
+            data.books = sampleBooks;
+            saveData(data);
+        }
+    </script>
+</body>
+</html>
